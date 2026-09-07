@@ -1,0 +1,446 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+
+msgid "Logged in"
+msgstr "已登录"
+
+msgid "Needs login"
+msgstr "需要登录"
+
+msgid "Not logged in"
+msgstr "未登录"
+
+msgid "Browser authentication required: "
+msgstr "需要浏览器认证："
+
+msgid "Open Tailscale login"
+msgstr "打开 Tailscale 登录"
+
+msgid "Logout resets the local Tailscale profile preferences. "
+msgstr "退出登录会重置本地 Tailscale Profile 首选项。"
+
+msgid "After browser login, Tailscale starts from its defaults. This LuCI intentionally does not back up or automatically restore previous preferences. A browser terminal may reconnect and lose its current shell session during logout."
+msgstr "浏览器重新登录后，Tailscale 从默认首选项开始。本 LuCI 有意不备份或自动恢复之前的首选项。退出登录期间网页终端可能重连并丢失当前 Shell 会话。"
+
+msgid "Unable to read account status."
+msgstr "无法读取账户状态。"
+
+msgid "Account status refreshed."
+msgstr "账户状态已刷新。"
+
+msgid "Refresh failed: "
+msgstr "刷新失败："
+
+msgid "Refresh Status"
+msgstr "刷新状态"
+
+msgid "Unable to start browser login."
+msgstr "无法启动浏览器登录。"
+
+msgid "Browser login started through the local Tailscale daemon. Open the authentication link, authorize this device, then press Refresh Status."
+msgstr "已通过本地 Tailscale 守护进程启动浏览器登录。打开认证链接并授权此设备，然后点击“刷新状态”。"
+
+msgid "Login completed."
+msgstr "登录已完成。"
+
+msgid "Interactive login started. Refresh status to obtain the current authentication URL or observe completion."
+msgstr "交互式登录已启动。刷新状态以获取当前认证链接或查看登录完成状态。"
+
+msgid "Login failed: "
+msgstr "登录失败："
+
+msgid "Start Browser Login"
+msgstr "开始浏览器登录"
+
+msgid "Log this device out of Tailscale? Logout resets the local Tailscale profile preferences. After login, Tailscale defaults are used and this LuCI will not auto-restore previous settings. A browser terminal may reconnect and lose its shell session. Continue only from local-LAN management."
+msgstr "确定让此设备退出 Tailscale？退出登录会重置本地 Tailscale Profile 首选项。重新登录后使用 Tailscale 默认值，本 LuCI 不会自动恢复之前的设置。网页终端可能会重连并丢失当前 Shell 会话。仅应从本地局域网管理入口继续。"
+
+msgid "Tailscale logout failed."
+msgstr "Tailscale 退出登录失败。"
+
+msgid "Device logged out. Previous Tailscale preferences are no longer active; re-login starts from Tailscale defaults."
+msgstr "设备已退出登录。原 Tailscale 首选项不再生效；重新登录将从 Tailscale 默认值开始。"
+
+msgid "Logout failed: "
+msgstr "退出登录失败："
+
+msgid "Log Out"
+msgstr "退出登录"
+
+msgid "Account"
+msgstr "账户"
+
+msgid "Account state is read from the installed official Tailscale Core. Browser login is initiated through tailscaled LocalAPI and does not accept or store auth keys, OAuth credentials, tokens, custom control-server URLs, or arbitrary CLI arguments."
+msgstr "账户状态来自已安装的官方 Tailscale Core。浏览器登录通过 tailscaled LocalAPI 启动，不接受或保存 Auth Key、OAuth 凭据、Token、自定义控制服务器 URL 或任意 CLI 参数。"
+
+msgid "Backend State"
+msgstr "后端状态"
+
+msgid "Account State"
+msgstr "账户状态"
+
+msgid "Logged-in state is derived from the current Tailscale backend state."
+msgstr "登录状态来自当前 Tailscale 后端状态。"
+
+msgid "Login Name"
+msgstr "登录名"
+
+msgid "Identity reported by the current Tailscale status."
+msgstr "身份信息来自当前 Tailscale 状态。"
+
+msgid "Display Name"
+msgstr "显示名称"
+
+msgid "Tailnet"
+msgstr "Tailnet"
+
+msgid "MagicDNS Suffix"
+msgstr "MagicDNS 后缀"
+
+msgid "Device"
+msgstr "设备"
+
+msgid "None"
+msgstr "无"
+
+msgid "Automatic (suggested exit node)"
+msgstr "自动（建议的出口节点）"
+
+msgid "Current: "
+msgstr "当前："
+
+msgid "Not supported by the installed Tailscale Core"
+msgstr "当前安装的 Tailscale Core 不支持"
+
+msgid "This device is advertising itself as an exit node. Disable Advertise Exit Node in Routing first."
+msgstr "此设备正在将自己发布为出口节点。请先在“路由”中关闭“发布为出口节点”。"
+
+msgid "Inactive while Use Exit Node is None. The stored preference is preserved."
+msgstr "“使用出口节点”为“无”时不生效；已保存首选项会保留。"
+
+msgid "This device is currently advertising itself as an exit node. Disable Advertise Exit Node in Routing before selecting another exit node."
+msgstr "此设备当前正将自己发布为出口节点。选择其他出口节点前，请先在“路由”中关闭“发布为出口节点”。"
+
+msgid "No changes to apply."
+msgstr "没有需要应用的更改。"
+
+msgid "Tailscale rejected the requested change."
+msgstr "Tailscale 拒绝了请求的更改。"
+
+msgid "Exit node preferences applied successfully."
+msgstr "出口节点首选项已成功应用。"
+
+msgid "Apply failed: "
+msgstr "应用失败："
+
+msgid "Apply Changes"
+msgstr "应用更改"
+
+msgid "This device is currently advertising itself as an exit node. Tailscale does not allow a device to advertise an exit node and use another exit node at the same time. Disable Advertise Exit Node in Routing first."
+msgstr "此设备当前正将自己发布为出口节点。Tailscale 不允许设备同时提供出口节点并使用另一个出口节点。请先在“路由”中关闭“发布为出口节点”。"
+
+msgid "Exit Node"
+msgstr "出口节点"
+
+msgid "Choose whether this R76S itself uses another Tailscale exit node. This is separate from advertising this device as an exit node in Routing."
+msgstr "选择此 R76S 是否使用另一个 Tailscale 出口节点。这与“路由”页面中将本机发布为出口节点是两个独立职责。"
+
+msgid "Use Exit Node"
+msgstr "使用出口节点"
+
+msgid "Allow LAN Access"
+msgstr "允许访问局域网"
+
+msgid "Allow this device to access its local LAN while it is routing internet traffic through an exit node. When no exit node is selected, this stored preference is inactive and is not automatically reset."
+msgstr "当此设备通过出口节点路由互联网流量时，允许其访问本地局域网。未选择出口节点时，该已保存首选项不生效，也不会被自动重置。"
+
+msgid "Tailscale preferences applied successfully."
+msgstr "Tailscale 首选项已成功应用。"
+
+msgid "General"
+msgstr "常规"
+
+msgid "These controls write directly to the official Tailscale preference store using partial \"tailscale set\" updates. Unchanged settings are not sent."
+msgstr "这些控制项通过部分 tailscale set 更新直接写入官方 Tailscale 首选项存储；未变化的设置不会发送。"
+
+msgid "Hostname"
+msgstr "主机名"
+
+msgid "Hostname advertised by this Tailscale node."
+msgstr "此 Tailscale 节点发布的主机名。"
+
+msgid "Accept DNS"
+msgstr "接受 DNS"
+
+msgid "Accept DNS configuration supplied by the tailnet."
+msgstr "接受 Tailnet 提供的 DNS 配置。"
+
+msgid "Accept Routes"
+msgstr "接受路由"
+
+msgid "Accept routes advertised by other Tailscale nodes."
+msgstr "接受其他 Tailscale 节点发布的路由。"
+
+msgid "Shields Up"
+msgstr "屏蔽入站连接"
+
+msgid "Block incoming Tailscale connections to this node."
+msgstr "阻止传入此节点的 Tailscale 连接。"
+
+msgid "Not checked yet"
+msgstr "尚未检查"
+
+msgid "Press Check for Updates to run a read-only Tailscale dry-run."
+msgstr "点击“检查更新”执行只读的 Tailscale dry-run。"
+
+msgid "Update preferences applied successfully."
+msgstr "更新首选项已成功应用。"
+
+msgid "Tailscale update dry-run failed."
+msgstr "Tailscale 更新 dry-run 失败。"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "No output"
+msgstr "无输出"
+
+msgid "Update check completed without changing the installed version."
+msgstr "更新检查完成，已安装版本未变化。"
+
+msgid "Update check failed: "
+msgstr "更新检查失败："
+
+msgid "Check for Updates"
+msgstr "检查更新"
+
+msgid "Run the official Tailscale stable updater now? This may restart tailscaled if a new version is installed."
+msgstr "现在运行官方 Tailscale 稳定版更新器？如果安装新版本，tailscaled 可能会重启。"
+
+msgid "Tailscale update failed."
+msgstr "Tailscale 更新失败。"
+
+msgid "Updater completed without output."
+msgstr "更新器完成，但没有输出。"
+
+msgid "Tailscale updated successfully: %s → %s"
+msgstr "Tailscale 已成功更新：%s → %s"
+
+msgid "Manual update completed; the installed version did not change."
+msgstr "手动更新完成，已安装版本未变化。"
+
+msgid "Manual update failed: "
+msgstr "手动更新失败："
+
+msgid "Install Stable Update"
+msgstr "安装稳定版更新"
+
+msgid "Maintenance"
+msgstr "维护"
+
+msgid "Update status and preferences use the installed official Tailscale Core. Check is read-only; Install Stable Update runs the fixed official \"tailscale update --yes\" command and exposes no arbitrary version, channel, URL, or shell input."
+msgstr "更新状态和首选项均使用已安装的官方 Tailscale Core。“检查更新”为只读；“安装稳定版更新”执行固定的官方 tailscale update --yes，不暴露任意版本、通道、URL 或 Shell 输入。"
+
+msgid "Installed Runtime Version"
+msgstr "已安装运行时版本"
+
+msgid "Runtime authority is tailscale version, not OpenWrt package metadata."
+msgstr "运行时版本以 tailscale version 为准，不以 OpenWrt 包元数据为准。"
+
+msgid "Latest Version"
+msgstr "最新版本"
+
+msgid "Populated by the official updater check or a completed manual update."
+msgstr "由官方更新检查或完成的手动更新填充。"
+
+msgid "Update Notifications"
+msgstr "更新通知"
+
+msgid "Allow Tailscale to notify this device when an update is available."
+msgstr "允许 Tailscale 在有更新时通知此设备。"
+
+msgid "Automatic Updates"
+msgstr "自动更新"
+
+msgid "Allow Tailscale to automatically apply supported client updates."
+msgstr "允许 Tailscale 自动应用受支持的客户端更新。"
+
+msgid "Update Output"
+msgstr "更新输出"
+
+msgid "Raw output from the official Tailscale updater is shown for auditability."
+msgstr "显示官方 Tailscale 更新器原始输出以便审计。"
+
+msgid "Yes"
+msgstr "是"
+
+msgid "No"
+msgstr "否"
+
+msgid "Backend state"
+msgstr "后端状态"
+
+msgid "CLI version"
+msgstr "CLI 版本"
+
+msgid "Daemon version"
+msgstr "守护进程版本"
+
+msgid "Tailscale IPv4"
+msgstr "Tailscale IPv4"
+
+msgid "Tailscale IPv6"
+msgstr "Tailscale IPv6"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Offers exit node"
+msgstr "提供出口节点"
+
+msgid "DERP region"
+msgstr "DERP 区域"
+
+msgid "Peers"
+msgstr "对等节点"
+
+msgid "Native control support"
+msgstr "原生控制支持"
+
+msgid "Tailscale Native"
+msgstr "Tailscale Native"
+
+msgid "Runtime state comes directly from the installed official Tailscale Core. OpenWrt package metadata is not used as the runtime version authority."
+msgstr "运行状态直接来自已安装的官方 Tailscale Core；OpenWrt 包元数据不作为运行时版本 Authority。"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Advanced Preferences"
+msgstr "高级首选项"
+
+msgid "Read-only view of the complete official preference store from tailscale get --json all. Settings not exposed by the structured pages remain visible here without creating a second configuration authority."
+msgstr "以只读方式显示 tailscale get --json all 返回的完整官方首选项存储。未在结构化页面暴露的设置仍可在此查看，同时不会创建第二个配置 Authority。"
+
+msgid "Routes must be comma-separated IPv4/IPv6 CIDRs without spaces."
+msgstr "路由必须是无空格、以逗号分隔的 IPv4/IPv6 CIDR。"
+
+msgid "Each advertised route must be a CIDR prefix."
+msgstr "每条发布路由都必须是 CIDR 前缀。"
+
+msgid "Default routes are controlled by Advertise Exit Node, not Advertised Routes."
+msgstr "默认路由由“发布为出口节点”控制，而不是“发布的路由”。"
+
+msgid "This device is currently using another exit node. Set Use Exit Node to None first."
+msgstr "此设备当前正在使用另一个出口节点。请先将“使用出口节点”设为“无”。"
+
+msgid "This device is currently using another exit node. Set Use Exit Node to None before advertising this device as an exit node."
+msgstr "此设备当前正在使用另一个出口节点。将本机发布为出口节点前，请先把“使用出口节点”设为“无”。"
+
+msgid "Tailscale routing preferences applied successfully."
+msgstr "Tailscale 路由首选项已成功应用。"
+
+msgid "This device is currently using another exit node. Tailscale does not allow it to advertise itself as an exit node at the same time. Set Use Exit Node to None first."
+msgstr "此设备当前正在使用另一个出口节点。Tailscale 不允许它同时将自己发布为出口节点。请先将“使用出口节点”设为“无”。"
+
+msgid "Routing"
+msgstr "路由"
+
+msgid "These controls modify the official Tailscale routing preferences with partial \"tailscale set\" updates. Default routes are controlled separately by Advertise Exit Node."
+msgstr "这些控制项通过部分 tailscale set 更新修改官方 Tailscale 路由首选项。默认路由由“发布为出口节点”单独控制。"
+
+msgid "Advertised Routes"
+msgstr "发布的路由"
+
+msgid "One IPv4 or IPv6 CIDR per line. Multiple prefixes are sent as a comma-separated list. Leave empty to advertise no subnet routes."
+msgstr "每行一个 IPv4 或 IPv6 CIDR。多个前缀会以逗号分隔发送。留空表示不发布子网路由。"
+
+msgid "Advertise Exit Node"
+msgstr "发布为出口节点"
+
+msgid "Advertise this device as an exit node."
+msgstr "将此设备发布为出口节点。"
+
+msgid "SNAT Subnet Routes"
+msgstr "子网路由 SNAT"
+
+msgid "Source-NAT traffic forwarded through advertised subnet routes."
+msgstr "对通过已发布子网路由转发的流量执行源 NAT。"
+
+msgid "Stateful Filtering"
+msgstr "有状态过滤"
+
+msgid "Apply stateful filtering to forwarded Tailscale traffic when supported by the installed Core."
+msgstr "在已安装 Core 支持时，对转发的 Tailscale 流量应用有状态过滤。"
+
+msgid "Netfilter Mode"
+msgstr "Netfilter 模式"
+
+msgid "Tailscale netfilter integration mode: on, nodivert, or off."
+msgstr "Tailscale netfilter 集成模式：on、nodivert 或 off。"
+
+msgid "The official Tailscale backend state for this device."
+msgstr "此设备的官方 Tailscale 后端状态。"
+
+msgid "Overview"
+msgstr "概况"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Core installed"
+msgstr "Core 已安装"
+
+msgid "Core service running"
+msgstr "Core 服务运行中"
+
+msgid "Core backend state"
+msgstr "Core 后端状态"
+
+msgid "Core runtime version"
+msgstr "Core 运行时版本"
+
+msgid "Router performance optimization"
+msgstr "路由性能优化"
+
+msgid "Optimized"
+msgstr "已优化"
+
+msgid "Not optimized"
+msgstr "未优化"
+
+msgid "Not supported"
+msgstr "不支持"
+
+msgid "Optimized interface(s)"
+msgstr "优化接口"
+
+msgid "Performance policy"
+msgstr "性能策略"
+
+
+msgid "Install the official stable Tailscale Core now? Native will download only from pkgs.tailscale.com/stable, verify the official SHA256, install the fixed OpenWrt service adapter, and start tailscaled."
+msgstr "现在安装官方稳定版 Tailscale Core？Native 只会从 pkgs.tailscale.com/stable 下载，校验官方 SHA256，安装固定的 OpenWrt 服务适配器并启动 tailscaled。"
+
+msgid "Official Core install failed."
+msgstr "官方 Core 安装失败。"
+
+msgid "Official stable Tailscale Core installed successfully."
+msgstr "官方稳定版 Tailscale Core 已成功安装。"
+
+msgid "Core install failed: "
+msgstr "Core 安装失败："
+
+msgid "Install Official Stable Core"
+msgstr "安装官方稳定版 Core"
+
+msgid "Core is not installed. Install the official stable Core before configuring or logging in to Tailscale."
+msgstr "Core 尚未安装。请先安装官方稳定版 Core，再配置或登录 Tailscale。"
+
+msgid "Native and Core have separate lifecycles. Installing this LuCI does not install Tailscale Core; Core installation is an explicit action using only the official stable source with SHA256 verification."
+msgstr "Native 与 Core 具有独立生命周期。安装此 LuCI 不会安装 Tailscale Core；Core 必须通过显式操作安装，且只使用官方 stable 源并校验 SHA256。"

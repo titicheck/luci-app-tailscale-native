@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+case "$ACTION" in
+	ifup|ifupdate)
+		/usr/libexec/tailscale-native-perf apply >/dev/null 2>&1 || true
+		;;
+esac
+exit 0

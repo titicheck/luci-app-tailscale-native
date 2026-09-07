@@ -1,0 +1,70 @@
+{
+  "admin/services/tailscale-native": {
+    "title": "Tailscale Native",
+    "order": 21,
+    "action": {
+      "type": "firstchild"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-tailscale-native"
+      ]
+    }
+  },
+  "admin/services/tailscale-native/overview": {
+    "title": "Overview",
+    "order": 1,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/overview"
+    }
+  },
+  "admin/services/tailscale-native/general": {
+    "title": "General",
+    "order": 2,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/general"
+    }
+  },
+  "admin/services/tailscale-native/routing": {
+    "title": "Routing",
+    "order": 3,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/routing"
+    }
+  },
+  "admin/services/tailscale-native/exit-node": {
+    "title": "Exit Node",
+    "order": 4,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/exit-node"
+    }
+  },
+  "admin/services/tailscale-native/account": {
+    "title": "Account",
+    "order": 5,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/account"
+    }
+  },
+  "admin/services/tailscale-native/maintenance": {
+    "title": "Maintenance",
+    "order": 6,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/maintenance"
+    }
+  },
+  "admin/services/tailscale-native/preferences": {
+    "title": "Advanced",
+    "order": 7,
+    "action": {
+      "type": "view",
+      "path": "tailscale-native/preferences"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+#!/bin/sh /etc/rc.common
+# SPDX-License-Identifier: GPL-2.0-only
+
+START=98
+
+start() {
+	/usr/libexec/tailscale-native-perf apply >/dev/null 2>&1 || true
+}
+
+stop() {
+	# Intentionally do not revert live NIC features during package/service stop.
+	# Native owns persistence, not the kernel defaults themselves.
+	return 0
+}

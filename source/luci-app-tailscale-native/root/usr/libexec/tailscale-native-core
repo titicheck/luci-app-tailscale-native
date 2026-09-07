@@ -1,0 +1,181 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Fixed-scope bootstrap for the official Tailscale stable static binaries.
+# No caller-supplied URL, version, channel, package name, shell text or argv is accepted.
+
+BASE='https://pkgs.tailscale.com/stable'
+TS='/usr/sbin/tailscale'
+TSD='/usr/sbin/tailscaled'
+INIT='/etc/init.d/tailscale'
+CONF='/etc/config/tailscale'
+STATE_DIR='/etc/tailscale'
+MARKER='/etc/tailscale/native-official-static'
+KEEP='/lib/upgrade/keep.d/tailscale'
+TEMPLATE_INIT='/usr/share/tailscale-native/core/tailscale.init'
+TEMPLATE_CONF='/usr/share/tailscale-native/core/tailscale.config'
+TMP="/tmp/tailscale-native-core.$$"
+
+cleanup() {
+	rm -rf "$TMP"
+}
+trap cleanup EXIT HUP INT TERM
+
+fail() {
+	echo "tailscale-native-core: $*" >&2
+	exit 1
+}
+
+arch_name() {
+	case "$(uname -m 2>/dev/null)" in
+		x86_64) echo amd64 ;;
+		aarch64|arm64) echo arm64 ;;
+		armv7*|armv6*) echo arm ;;
+		i386|i486|i586|i686) echo 386 ;;
+		mips) echo mips ;;
+		mipsel|mipsle) echo mipsle ;;
+		mips64) echo mips64 ;;
+		mips64el|mips64le) echo mips64le ;;
+		riscv64) echo riscv64 ;;
+		*) return 1 ;;
+	esac
+}
+
+core_complete() {
+	[ -x "$TS" ] && [ -x "$TSD" ] && [ -x "$INIT" ]
+}
+
+core_any() {
+	[ -e "$TS" ] || [ -e "$TSD" ] || [ -e "$INIT" ] || [ -e "$CONF" ]
+}
+
+write_keep_file() {
+	mkdir -p /lib/upgrade/keep.d || return 1
+	KEEP_TMP="$KEEP.native-new"
+	cat > "$KEEP_TMP" <<'KEEP_EOF' || return 1
+/etc/config/tailscale
+/etc/init.d/tailscale
+/etc/rc.d/S80tailscale
+/etc/tailscale/
+/lib/upgrade/keep.d/tailscale
+/usr/bin/tailscale
+/usr/sbin/tailscale
+/usr/sbin/tailscaled
+KEEP_EOF
+	chmod 0644 "$KEEP_TMP" || { rm -f "$KEEP_TMP"; return 1; }
+	mv -f "$KEEP_TMP" "$KEEP" || { rm -f "$KEEP_TMP"; return 1; }
+	return 0
+}
+
+install_core() {
+	if core_complete; then
+		# dev4 and later official-static Core is independently persistent from
+		# Native. Repair only our own marker-bound sysupgrade contract; never
+		# modify a complete external/package-managed Core.
+		if [ -r "$MARKER" ]; then
+			write_keep_file || fail 'unable to install Core sysupgrade persistence contract'
+		fi
+		echo 'tailscale-native-core: complete Tailscale Core already present; leaving runtime and preferences unchanged'
+		return 0
+	fi
+
+	# Refuse to guess ownership or repair a mixed/partial pre-existing Core.
+	core_any && fail 'partial pre-existing Tailscale Core detected; refusing automatic overwrite'
+
+	[ -x /usr/bin/curl ] || [ -x /usr/sbin/curl ] || fail 'curl not found'
+	[ -x /bin/tar ] || [ -x /usr/bin/tar ] || command -v tar >/dev/null 2>&1 || fail 'tar not found'
+	command -v sha256sum >/dev/null 2>&1 || fail 'sha256sum not found'
+	[ -r "$TEMPLATE_INIT" ] || fail 'OpenWrt service template missing'
+	[ -r "$TEMPLATE_CONF" ] || fail 'OpenWrt config template missing'
+
+	CURL='/usr/bin/curl'
+	[ -x "$CURL" ] || CURL='/usr/sbin/curl'
+	ARCH="$(arch_name)" || fail 'unsupported CPU architecture'
+
+	mkdir -p "$TMP" || fail 'unable to create temporary directory'
+	META="$TMP/stable.json"
+	TGZ="$TMP/tailscale.tgz"
+	SUM="$TMP/tailscale.sha256"
+	EXTRACT="$TMP/extract"
+	mkdir -p "$EXTRACT" || fail 'unable to create extraction directory'
+
+	"$CURL" --fail --location --silent --show-error \
+		--connect-timeout 15 --max-time 60 \
+		"$BASE/?mode=json" -o "$META" || fail 'unable to fetch official stable metadata'
+
+	TARBALL="$(sed -n "s/.*\"$ARCH\"[[:space:]]*:[[:space:]]*\"\(tailscale_[^\"]*_$ARCH\\.tgz\)\".*/\1/p" "$META" | head -n1)"
+	[ -n "$TARBALL" ] || fail "official stable metadata has no $ARCH tarball"
+	case "$TARBALL" in
+		tailscale_*_"$ARCH".tgz) ;;
+		*) fail 'invalid official tarball name' ;;
+	esac
+
+	"$CURL" --fail --location --silent --show-error \
+		--connect-timeout 15 --max-time 240 \
+		"$BASE/$TARBALL" -o "$TGZ" || fail 'unable to download official Tailscale stable tarball'
+	"$CURL" --fail --location --silent --show-error \
+		--connect-timeout 15 --max-time 60 \
+		"$BASE/$TARBALL.sha256" -o "$SUM" || fail 'unable to download official checksum'
+
+	EXPECTED="$(awk 'NR==1 {print $1}' "$SUM")"
+	printf '%s\n' "$EXPECTED" | grep -Eq '^[0-9A-Fa-f]{64}$' || fail 'invalid official SHA256 file'
+	ACTUAL="$(sha256sum "$TGZ" | awk '{print $1}')"
+	[ "$ACTUAL" = "$EXPECTED" ] || fail 'official tarball SHA256 verification failed'
+
+	tar -xzf "$TGZ" -C "$EXTRACT" || fail 'unable to extract official tarball'
+	DIR="$EXTRACT/${TARBALL%.tgz}"
+	[ -x "$DIR/tailscale" ] || fail 'official tailscale binary missing from tarball'
+	[ -x "$DIR/tailscaled" ] || fail 'official tailscaled binary missing from tarball'
+
+	mkdir -p /usr/sbin /usr/bin "$STATE_DIR" /etc/config || fail 'unable to create Core directories'
+	cp "$DIR/tailscale" /usr/sbin/.tailscale.native-new || fail 'unable to stage tailscale binary'
+	cp "$DIR/tailscaled" /usr/sbin/.tailscaled.native-new || fail 'unable to stage tailscaled binary'
+	chmod 0755 /usr/sbin/.tailscale.native-new /usr/sbin/.tailscaled.native-new || fail 'unable to chmod staged binaries'
+	mv -f /usr/sbin/.tailscale.native-new "$TS" || fail 'unable to activate tailscale binary'
+	mv -f /usr/sbin/.tailscaled.native-new "$TSD" || fail 'unable to activate tailscaled binary'
+
+	if [ ! -e /usr/bin/tailscale ]; then
+		ln -s /usr/sbin/tailscale /usr/bin/tailscale || fail 'unable to create tailscale CLI symlink'
+	fi
+
+	cp "$TEMPLATE_CONF" "$CONF" || fail 'unable to install OpenWrt Tailscale config'
+	chmod 0644 "$CONF"
+	cp "$TEMPLATE_INIT" "$INIT" || fail 'unable to install OpenWrt Tailscale init service'
+	chmod 0755 "$INIT"
+	chmod 0700 "$STATE_DIR"
+	write_keep_file || fail 'unable to install Core sysupgrade persistence contract'
+
+	{
+		echo "source=official-static"
+		echo "tarball=$TARBALL"
+		echo "sha256=$ACTUAL"
+		echo "installed_version=$($TS version 2>/dev/null | head -n1)"
+	} > "$MARKER"
+	chmod 0600 "$MARKER"
+
+	"$INIT" enable >/dev/null 2>&1 || true
+	"$INIT" start >/dev/null 2>&1 || fail 'official Core installed but tailscaled failed to start'
+
+	echo "tailscale-native-core: installed official stable $($TS version 2>/dev/null | head -n1) ($ARCH)"
+	return 0
+}
+
+status_core() {
+	printf 'cli=%s\n' "$([ -x "$TS" ] && echo present || echo missing)"
+	printf 'daemon=%s\n' "$([ -x "$TSD" ] && echo present || echo missing)"
+	printf 'init=%s\n' "$([ -x "$INIT" ] && echo present || echo missing)"
+	if [ -x "$TS" ]; then
+		printf 'version=%s\n' "$($TS version 2>/dev/null | head -n1)"
+	fi
+	if [ -r "$MARKER" ]; then
+		printf 'source=official-static\n'
+		printf 'sysupgrade_persistence=%s\n' "$([ -r "$KEEP" ] && echo present || echo missing)"
+	else
+		printf 'source=external-or-unknown\n'
+	fi
+}
+
+case "${1:-install}" in
+	install) install_core ;;
+	status) status_core ;;
+	*) exit 64 ;;
+esac

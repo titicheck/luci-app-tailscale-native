@@ -1,0 +1,589 @@
+#!/usr/bin/ucode
+// SPDX-License-Identifier: GPL-2.0-only
+'use strict';
+
+import { access, popen } from 'fs';
+const TS = '/usr/sbin/tailscale';
+const TSD = '/usr/sbin/tailscaled';
+const TS_SOCK = '/var/run/tailscale/tailscaled.sock';
+const LOCALAPI_LOGIN = 'http://local-tailscaled.sock/localapi/v0/login-interactive';
+const PERF = '/usr/libexec/tailscale-native-perf';
+const CORE_HELPER = '/usr/libexec/tailscale-native-core';
+
+/*
+ * iStoreOS 24.10 target ucode exposes string-form fs.popen().
+ * Every argv element is therefore single-shell-quoted before the command
+ * string is handed to popen(). Never interpolate caller input outside
+ * shellquote(), and never wrap the resulting command in another sh -c layer.
+ */
+function shellquote(s) {
+	return `'${replace(s ?? '', "'", "'\\''")}'`;
+}
+
+function command_from_argv(argv, merge_stderr) {
+	let quoted = [];
+	for (let arg in argv)
+		push(quoted, shellquote(arg));
+
+	return join(' ', quoted) + (merge_stderr ? ' 2>&1' : '');
+}
+
+function run(argv, merge_stderr) {
+	let proc = popen(command_from_argv(argv, merge_stderr), 'r');
+	if (!proc)
+		return { ok: false, code: 127, stdout: '', error: 'unable to start process' };
+
+	let stdout = proc.read('all') ?? '';
+	let code = proc.close();
+	return { ok: code == 0, code: code, stdout: stdout };
+}
+
+function curl_path() {
+	if (access('/usr/sbin/curl', 'x'))
+		return '/usr/sbin/curl';
+	if (access('/usr/bin/curl', 'x'))
+		return '/usr/bin/curl';
+	return '';
+}
+
+function parse_json_command(argv) {
+	let r = run(argv, false);
+	if (!r.ok)
+		return { ok: false, code: r.code, error: 'command failed' };
+
+	try {
+		return { ok: true, value: json(r.stdout) };
+	}
+	catch (e) {
+		return { ok: false, code: 65, error: 'invalid JSON from Tailscale CLI' };
+	}
+}
+
+function first_line(s) {
+	let m = match(s ?? '', /^([^\r\n]+)/);
+	return m?.[1] ?? '';
+}
+
+function has_flag(help, name) {
+	return index(help ?? '', '--' + name) >= 0;
+}
+
+function normalize_status(raw) {
+	let ips = raw?.TailscaleIPs ?? raw?.Self?.TailscaleIPs ?? [];
+	let ipv4 = '';
+	let ipv6 = '';
+	for (let ip in ips) {
+		if (match(ip, /:/)) {
+			if (!ipv6) ipv6 = ip;
+		}
+		else {
+			if (!ipv4) ipv4 = ip;
+		}
+	}
+
+	let self = raw?.Self ?? {};
+	let peers = [];
+	for (let key, p in (raw?.Peer ?? {})) {
+		push(peers, {
+			id: p?.ID ?? key,
+			hostname: p?.HostName ?? '',
+			dns_name: p?.DNSName ?? '',
+			os: p?.OS ?? '',
+			online: p?.Online ?? false,
+			active: p?.Active ?? false,
+			exit_node: p?.ExitNode ?? false,
+			exit_node_option: p?.ExitNodeOption ?? false,
+			current_address: p?.CurAddr ?? '',
+			relay: p?.Relay ?? '',
+			rx_bytes: p?.RxBytes ?? 0,
+			tx_bytes: p?.TxBytes ?? 0,
+			tailscale_ips: p?.TailscaleIPs ?? []
+		});
+	}
+
+	return {
+		backend_state: raw?.BackendState ?? '',
+		version: raw?.Version ?? '',
+		tun: raw?.TUN ?? false,
+		ipv4: ipv4,
+		ipv6: ipv6,
+		self: {
+			id: self?.ID ?? '',
+			hostname: self?.HostName ?? '',
+			dns_name: self?.DNSName ?? '',
+			os: self?.OS ?? '',
+			online: self?.Online ?? false,
+			active: self?.Active ?? false,
+			exit_node: self?.ExitNode ?? false,
+			exit_node_option: self?.ExitNodeOption ?? false,
+			current_address: self?.CurAddr ?? '',
+			relay: self?.Relay ?? '',
+			rx_bytes: self?.RxBytes ?? 0,
+			tx_bytes: self?.TxBytes ?? 0
+		},
+		peers: peers
+	};
+}
+
+function normalize_account(raw) {
+	let self = raw?.Self ?? {};
+	let user_id = self?.UserID ?? 0;
+	let profile = {};
+
+	for (let key, p in (raw?.User ?? {})) {
+		if ((p?.ID ?? key) == user_id || key == user_id) {
+			profile = p ?? {};
+			break;
+		}
+	}
+
+	let tailnet = raw?.CurrentTailnet ?? {};
+	let backend_state = raw?.BackendState ?? '';
+	return {
+		backend_state: backend_state,
+		logged_in: backend_state == 'Running',
+		needs_login: backend_state == 'NeedsLogin',
+		user_id: user_id,
+		login_name: profile?.LoginName ?? '',
+		display_name: profile?.DisplayName ?? '',
+		profile_pic_url: profile?.ProfilePicURL ?? '',
+		tailnet_name: tailnet?.Name ?? '',
+		magic_dns_suffix: tailnet?.MagicDNSSuffix ?? '',
+		hostname: self?.HostName ?? '',
+		dns_name: self?.DNSName ?? '',
+		auth_url: raw?.AuthURL ?? ''
+	};
+}
+
+
+function prefs_set_call(request) {
+	/* rpcd's args policy below is the first type gate. This function adds
+	 * semantic validation for the enum and builds only explicitly supplied
+	 * Tailscale flags. */
+	let argv = [ TS, 'set' ];
+	let applied = [];
+	let a = request.args ?? {};
+
+	if ('hostname' in a) {
+		push(argv, '--hostname=' + a.hostname);
+		push(applied, 'hostname');
+	}
+	if ('accept_dns' in a) {
+		push(argv, '--accept-dns=' + (a.accept_dns ? 'true' : 'false'));
+		push(applied, 'accept_dns');
+	}
+	if ('accept_routes' in a) {
+		push(argv, '--accept-routes=' + (a.accept_routes ? 'true' : 'false'));
+		push(applied, 'accept_routes');
+	}
+	if ('shields_up' in a) {
+		push(argv, '--shields-up=' + (a.shields_up ? 'true' : 'false'));
+		push(applied, 'shields_up');
+	}
+	if ('advertise_routes' in a) {
+		push(argv, '--advertise-routes=' + a.advertise_routes);
+		push(applied, 'advertise_routes');
+	}
+	if ('advertise_exit_node' in a) {
+		push(argv, '--advertise-exit-node=' + (a.advertise_exit_node ? 'true' : 'false'));
+		push(applied, 'advertise_exit_node');
+	}
+	if ('snat_subnet_routes' in a) {
+		push(argv, '--snat-subnet-routes=' + (a.snat_subnet_routes ? 'true' : 'false'));
+		push(applied, 'snat_subnet_routes');
+	}
+	if ('stateful_filtering' in a) {
+		push(argv, '--stateful-filtering=' + (a.stateful_filtering ? 'true' : 'false'));
+		push(applied, 'stateful_filtering');
+	}
+	if ('netfilter_mode' in a) {
+		if (!(a.netfilter_mode in [ 'on', 'nodivert', 'off' ]))
+			return { ok: false, error: 'invalid netfilter_mode' };
+
+		push(argv, '--netfilter-mode=' + a.netfilter_mode);
+		push(applied, 'netfilter_mode');
+	}
+	if ('exit_node' in a) {
+		/* Empty disables exit-node use. Otherwise accept the identifier forms
+		 * supported by Tailscale (IP/name/stable ID) plus auto:any. Keep the
+		 * grammar deliberately narrow even though every argv is shell-quoted. */
+		if (length(a.exit_node) > 253 || (a.exit_node != '' && !match(a.exit_node, /^[A-Za-z0-9._:-]+$/)))
+			return { ok: false, error: 'invalid exit_node' };
+
+		push(argv, '--exit-node=' + a.exit_node);
+		push(applied, 'exit_node');
+	}
+	if ('exit_node_allow_lan_access' in a) {
+		push(argv, '--exit-node-allow-lan-access=' + (a.exit_node_allow_lan_access ? 'true' : 'false'));
+		push(applied, 'exit_node_allow_lan_access');
+	}
+	if ('update_check' in a) {
+		push(argv, '--update-check=' + (a.update_check ? 'true' : 'false'));
+		push(applied, 'update_check');
+	}
+	if ('auto_update' in a) {
+		push(argv, '--auto-update=' + (a.auto_update ? 'true' : 'false'));
+		push(applied, 'auto_update');
+	}
+
+	if (!length(applied))
+		return { ok: false, error: 'no preferences supplied' };
+
+	/* Capture stderr only for this non-JSON mutation call so official CLI
+	 * validation errors can be returned without contaminating JSON readers. */
+	let r = run(argv, true);
+	if (!r.ok)
+		return {
+			ok: false,
+			code: r.code,
+			error: trim(r.stdout) || 'tailscale set failed',
+			applied: []
+		};
+
+	let p = parse_json_command([ TS, 'get', '--json', 'all' ]);
+	return {
+		ok: true,
+		code: r.code,
+		applied: applied,
+		preferences: p.ok ? p.value : null,
+		refresh_ok: p.ok
+	};
+}
+
+function core_status() {
+	let cli_present = access(TS, 'x') ? true : false;
+	let daemon_present = access(TSD, 'x') ? true : false;
+	let init_present = access('/etc/init.d/tailscale', 'x') ? true : false;
+	let version = '';
+	let running = false;
+	let backend_state = '';
+
+	if (cli_present) {
+		let v = run([ TS, 'version' ], false);
+		if (v.ok) version = first_line(v.stdout);
+	}
+
+	if (init_present) {
+		let sr = run([ '/etc/init.d/tailscale', 'status' ], false);
+		running = sr.ok;
+	}
+
+	if (cli_present && running) {
+		let st = parse_json_command([ TS, 'status', '--json' ]);
+		if (st.ok) backend_state = st.value?.BackendState ?? '';
+	}
+
+	let source = access('/etc/tailscale/native-official-static', 'r') ? 'official-static' : (cli_present || daemon_present || init_present ? 'external-or-unknown' : 'none');
+
+	return {
+		ok: true,
+		core: {
+			installed: (cli_present && daemon_present && init_present) ? true : false,
+			cli_present: cli_present,
+			daemon_present: daemon_present,
+			init_present: init_present,
+			running: running,
+			version: version,
+			backend_state: backend_state,
+			source: source
+		}
+	};
+}
+
+function performance_status() {
+	if (!access(PERF, 'x'))
+		return { ok: true, performance: { supported: false, optimized: false, devices: [] } };
+
+	let r = run([ PERF, 'status' ], false);
+	let devices = [];
+	let optimized = true;
+
+	if (r.ok) {
+		for (let line in split(trim(r.stdout ?? ''), '\n')) {
+			if (!length(line)) continue;
+			let f = split(line, '\t');
+			if (length(f) < 3) continue;
+			let d = {
+				name: f[0],
+				rx_udp_gro_forwarding: f[1],
+				rx_gro_list: f[2]
+			};
+			if (d.rx_udp_gro_forwarding != 'on' || d.rx_gro_list != 'off')
+				optimized = false;
+			push(devices, d);
+		}
+	}
+
+	return {
+		ok: r.ok,
+		performance: {
+			supported: length(devices) > 0,
+			optimized: length(devices) > 0 && optimized,
+			devices: devices,
+			policy: 'rx-udp-gro-forwarding=on, rx-gro-list=off'
+		}
+	};
+}
+
+const methods = {
+	core_get: {
+		call: core_status
+	},
+
+	core_install: {
+		call: function() {
+			/* Explicit, fixed-scope bootstrap only. No request arguments are
+			 * accepted and no URL/version/channel/arch/shell surface is exposed.
+			 * The helper itself owns official metadata lookup, SHA256 verification,
+			 * staging, service-adapter installation and daemon start. */
+			if (!access(CORE_HELPER, 'x'))
+				return { ok: false, code: 127, error: 'official Core install helper not found' };
+
+			let r = run([ CORE_HELPER, 'install' ], true);
+			let s = core_status();
+			return {
+				ok: r.ok && s.core?.installed == true,
+				code: r.code,
+				output: trim(r.stdout ?? ''),
+				error: r.ok ? '' : (trim(r.stdout ?? '') || 'official Core install failed'),
+				core: s.core
+			};
+		}
+	},
+
+	performance_get: {
+		call: performance_status
+	},
+
+	version: {
+		call: function() {
+			if (!access(TS, 'x') || !access(TSD, 'x'))
+				return { ok: false, error: 'Tailscale binaries not found' };
+
+			let cli = run([ TS, 'version' ], false);
+			let daemon = run([ TSD, '--version' ], false);
+			return { ok: cli.ok && daemon.ok, cli: first_line(cli.stdout), daemon: first_line(daemon.stdout) };
+		}
+	},
+
+	prefs_get: {
+		call: function() {
+			let r = parse_json_command([ TS, 'get', '--json', 'all' ]);
+			if (!r.ok) return r;
+			return { ok: true, preferences: r.value };
+		}
+	},
+
+	prefs_set: {
+		args: {
+			hostname: '',
+			accept_dns: false,
+			accept_routes: false,
+			shields_up: false,
+			advertise_routes: '',
+			advertise_exit_node: false,
+			snat_subnet_routes: false,
+			stateful_filtering: false,
+			netfilter_mode: '',
+			exit_node: '',
+			exit_node_allow_lan_access: false,
+			update_check: false,
+			auto_update: false
+		},
+		call: prefs_set_call
+	},
+
+	status: {
+		call: function() {
+			let r = parse_json_command([ TS, 'status', '--json' ]);
+			if (!r.ok) return r;
+			return { ok: true, status: normalize_status(r.value) };
+		}
+	},
+
+	capabilities: {
+		call: function() {
+			let seth = run([ TS, 'set', '--help' ], true);
+			let geth = run([ TS, 'get', '--help' ], true);
+			let updateh = run([ TS, 'update', '--help' ], true);
+			return {
+				ok: geth.ok && seth.ok,
+				commands: {
+					get: geth.ok,
+					set: seth.ok,
+					update: updateh.ok
+				},
+				set_flags: {
+					accept_dns: has_flag(seth.stdout, 'accept-dns'),
+					accept_routes: has_flag(seth.stdout, 'accept-routes'),
+					advertise_connector: has_flag(seth.stdout, 'advertise-connector'),
+					advertise_exit_node: has_flag(seth.stdout, 'advertise-exit-node'),
+					advertise_routes: has_flag(seth.stdout, 'advertise-routes'),
+					auto_update: has_flag(seth.stdout, 'auto-update'),
+					exit_node: has_flag(seth.stdout, 'exit-node'),
+					exit_node_allow_lan_access: has_flag(seth.stdout, 'exit-node-allow-lan-access'),
+					hostname: has_flag(seth.stdout, 'hostname'),
+					netfilter_mode: has_flag(seth.stdout, 'netfilter-mode'),
+					nickname: has_flag(seth.stdout, 'nickname'),
+					operator: has_flag(seth.stdout, 'operator'),
+					relay_server_port: has_flag(seth.stdout, 'relay-server-port'),
+					relay_server_static_endpoints: has_flag(seth.stdout, 'relay-server-static-endpoints'),
+					report_posture: has_flag(seth.stdout, 'report-posture'),
+					shields_up: has_flag(seth.stdout, 'shields-up'),
+					snat_subnet_routes: has_flag(seth.stdout, 'snat-subnet-routes'),
+					ssh: has_flag(seth.stdout, 'ssh'),
+					stateful_filtering: has_flag(seth.stdout, 'stateful-filtering'),
+					update_check: has_flag(seth.stdout, 'update-check'),
+					webclient: has_flag(seth.stdout, 'webclient')
+				}
+			};
+		}
+	},
+
+	update_check: {
+		call: function() {
+			/* Dry-run is deliberately fixed-argument and read-only. It asks the
+			 * installed Tailscale Core what a manual update would do without
+			 * starting an update or prompting for confirmation. */
+			let current = run([ TS, 'version' ], false);
+			let check = run([ TS, 'update', '--dry-run' ], true);
+			let current_version = first_line(current.stdout);
+			let latest_version = '';
+
+			let m = match(check.stdout ?? '', /Current:\s*([^,\s]+),\s*Latest:\s*([^\s]+)/);
+			if (m) {
+				if (m[1]) current_version = m[1];
+				if (m[2]) latest_version = m[2];
+			}
+
+			/* Current stable releases may report only "already running stable
+			 * version X; no update needed". In that successful no-update case,
+			 * the latest stable version is necessarily the installed version. */
+			if (!latest_version && check.ok && index(check.stdout ?? '', 'no update needed') >= 0)
+				latest_version = current_version;
+
+			return {
+				ok: current.ok && check.ok,
+				code: check.code,
+				current: current_version,
+				latest: latest_version,
+				output: trim(check.stdout ?? '')
+			};
+		}
+	},
+
+	update_apply: {
+		call: function() {
+			/* Fixed-argument manual stable update. There is no caller supplied
+			 * version, channel, URL, shell text, or arbitrary argv surface. */
+			let before = run([ TS, 'version' ], false);
+			if (!before.ok)
+				return { ok: false, code: before.code, error: 'unable to read current Tailscale version' };
+
+			let before_version = first_line(before.stdout);
+			let apply = run([ TS, 'update', '--yes' ], true);
+			let after = run([ TS, 'version' ], false);
+			let after_version = after.ok ? first_line(after.stdout) : '';
+
+			/* Refresh official state after the updater returns. A real update may
+			 * briefly restart tailscaled, so refresh failures are reported but do
+			 * not rewrite the updater's own exit status. */
+			let prefs = parse_json_command([ TS, 'get', '--json', 'all' ]);
+			let status = parse_json_command([ TS, 'status', '--json' ]);
+
+			return {
+				ok: apply.ok && after.ok,
+				code: apply.code,
+				before: before_version,
+				after: after_version,
+				changed: after.ok && before_version != after_version,
+				output: trim(apply.stdout ?? ''),
+				prefs_refresh_ok: prefs.ok,
+				status_refresh_ok: status.ok,
+				backend_state: status.ok ? (status.value?.BackendState ?? '') : ''
+			};
+		}
+	},
+
+	account_get: {
+		call: function() {
+			let r = parse_json_command([ TS, 'status', '--json' ]);
+			if (!r.ok)
+				return { ok: false, code: r.code, error: r.error ?? 'unable to read Tailscale account status' };
+			return { ok: true, account: normalize_account(r.value) };
+		}
+	},
+
+	account_login: {
+		call: function() {
+			/* Start browser authentication through tailscaled's official LocalAPI.
+			 * No auth key, OAuth credential, login server, shell text, timeout hack,
+			 * or caller-controlled argv is accepted. The daemon owns the interactive
+			 * login lifecycle; AuthURL is read back from status --json. */
+			let before = parse_json_command([ TS, 'status', '--json' ]);
+			if (before.ok && (before.value?.BackendState ?? '') == 'Running')
+				return { ok: false, code: 64, error: 'already logged in' };
+
+			let curl = curl_path();
+			if (!curl)
+				return { ok: false, code: 127, error: 'curl is required for LocalAPI browser login' };
+
+			let r = run([
+				curl,
+				'--silent',
+				'--show-error',
+				'--unix-socket', TS_SOCK,
+				'--output', '/dev/null',
+				'--write-out', '%{http_code}',
+				'--request', 'POST',
+				LOCALAPI_LOGIN
+			], true);
+
+			let http_code = trim(r.stdout ?? '');
+			if (!r.ok || http_code != '204')
+				return {
+					ok: false,
+					code: r.code,
+					http_code: http_code,
+					error: r.ok ? ('LocalAPI login start returned HTTP ' + http_code) : (http_code || 'unable to start LocalAPI browser login')
+				};
+
+			let after = parse_json_command([ TS, 'status', '--json' ]);
+			let state = after.ok ? (after.value?.BackendState ?? '') : '';
+			let auth_url = after.ok ? (after.value?.AuthURL ?? '') : '';
+			if (!auth_url && before.ok)
+				auth_url = before.value?.AuthURL ?? '';
+
+			return {
+				ok: true,
+				code: r.code,
+				http_code: http_code,
+				pending: state != 'Running',
+				completed: state == 'Running',
+				auth_url: auth_url,
+				backend_state: state
+			};
+		}
+	},
+
+	account_logout: {
+		call: function() {
+			/* Fixed command. Logging out intentionally disconnects this node from
+			 * the tailnet and therefore requires explicit UI confirmation. */
+			let before = parse_json_command([ TS, 'status', '--json' ]);
+			if (before.ok && (before.value?.BackendState ?? '') != 'Running')
+				return { ok: false, code: 64, error: 'device is not currently logged in' };
+
+			let r = run([ TS, 'logout' ], true);
+			let after = parse_json_command([ TS, 'status', '--json' ]);
+			return {
+				ok: r.ok,
+				code: r.code,
+				output: trim(r.stdout ?? ''),
+				backend_state: after.ok ? (after.value?.BackendState ?? '') : ''
+			};
+		}
+	}
+};
+
+return { 'luci.tailscale': methods };

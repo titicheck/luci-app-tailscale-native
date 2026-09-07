@@ -1,0 +1,30 @@
+{
+  "luci-app-tailscale-native": {
+    "description": "Native LuCI integration for the official Tailscale Core",
+    "read": {
+      "ubus": {
+        "luci.tailscale": [
+          "performance_get",
+          "core_get",
+          "version",
+          "prefs_get",
+          "status",
+          "capabilities",
+          "update_check",
+          "account_get"
+        ]
+      }
+    },
+    "write": {
+      "ubus": {
+        "luci.tailscale": [
+          "core_install",
+          "prefs_set",
+          "update_apply",
+          "account_login",
+          "account_logout"
+        ]
+      }
+    }
+  }
+}
